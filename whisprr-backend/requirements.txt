@@ -1,0 +1,4 @@
+fastapi[all]
+google-generativeai 
+python-dotenv
+sqlmodel
