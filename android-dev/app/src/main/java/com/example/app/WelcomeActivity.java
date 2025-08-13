@@ -1,4 +1,4 @@
-package com.example.app; // Make sure this matches your package name
+package com.example.app;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -30,13 +30,12 @@ public class WelcomeActivity extends AppCompatActivity {
                 if (aiName.isEmpty()) {
                     Toast.makeText(WelcomeActivity.this, "Please enter a name for your AI.", Toast.LENGTH_SHORT).show();
                 } else {
-                    // Create an Intent to open MainActivity
-                    Intent intent = new Intent(WelcomeActivity.this, MainActivity.class);
+                    // Create an Intent to open GenreSelectionActivity
+                    Intent intent = new Intent(WelcomeActivity.this, GenreSelectionActivity.class);
                     // Pass the AI's name to the next activity
                     intent.putExtra("AI_NAME", aiName);
                     startActivity(intent);
-                    // Optional: finish() this activity so the user can't go back to it
-                    finish();
+                    // We don't finish() here so the user can go back to change the AI name
                 }
             }
         });

@@ -1,69 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp"
     tools:context=".MainActivity">
 
-    <ScrollView
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/storyRecyclerView"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
-
-        <TextView
-            android:id="@+id/storyTextView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="16sp"/>
-    </ScrollView>
-
-    <EditText
-        android:id="@+id/userInputEditText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:hint="What happens next?"/>
+        android:layout_height="match_parent"
+        android:layout_above="@+id/inputControls"
+        android:clipToPadding="false"
+        android:padding="8dp"/>
 
     <LinearLayout
+        android:id="@+id/inputControls"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:orientation="horizontal">
+        android:layout_alignParentBottom="true"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:gravity="center_vertical">
+
+        <EditText
+            android:id="@+id/userInputEditText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="What happens next?"/>
 
         <Button
             android:id="@+id/sendButton"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Send"/>
+            android:text="Send"
+            android:layout_marginStart="8dp"/>
 
-        <View
-            android:layout_width="8dp"
-            android:layout_height="0dp"/>
-
-        <Button
-            android:id="@+id/saveButton"
-            android:layout_width="0dp"
+        <ImageButton
+            android:id="@+id/recordButton"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Save Story"
-            style="?attr/materialButtonOutlinedStyle"/>
-
-        <View
-            android:layout_width="8dp"
-            android:layout_height="0dp"/>
-
-        <Button
-            android:id="@+id/libraryButton"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="View Library"/>
+            android:src="@android:drawable/ic_btn_speak_now"
+            android:layout_marginStart="8dp"/>
 
     </LinearLayout>
 
-
-</LinearLayout>
+</RelativeLayout>

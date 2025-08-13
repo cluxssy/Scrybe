@@ -10,29 +10,41 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.TextView;
+import android.widget.ImageButton;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+
 import okhttp3.MediaType;
 import okhttp3.RequestBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import com.example.app.BuildConfig;
 
 public class MainActivity extends AppCompatActivity {
 
     private String aiName;
-    private TextView storyTextView;
+    private String genre;
+
+    // --- UI elements for the canvas ---
+    private RecyclerView storyRecyclerView;
+    private StoryCanvasAdapter storyCanvasAdapter;
+    private List<StoryElement> storyElements;
     private EditText userInputEditText;
-    private Button recordButton;
-    private Button saveButton;
-    private Button libraryButton;
+    private Button sendButton;
+    private ImageButton recordButton;
+    // Note: save and library buttons can be re-added to a Toolbar later
 
     // Permissions
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
@@ -61,29 +73,41 @@ public class MainActivity extends AppCompatActivity {
 
         ActivityCompat.requestPermissions(this, permissions, REQUEST_RECORD_AUDIO_PERMISSION);
 
+        // --- Get data from previous activities ---
         aiName = getIntent().getStringExtra("AI_NAME");
-        if (aiName == null) {
-            aiName = "Orion";
-        }
-        Toast.makeText(this, "Your co-author is " + aiName, Toast.LENGTH_SHORT).show();
+        genre = getIntent().getStringExtra("GENRE");
+        if (aiName == null) aiName = "Orion";
+        if (genre == null) genre = "Mystery";
 
-        storyTextView = findViewById(R.id.storyTextView);
+        // --- Find UI Views ---
         userInputEditText = findViewById(R.id.userInputEditText);
-        recordButton = findViewById(R.id.sendButton); // Assuming ID is still sendButton in XML
-        saveButton = findViewById(R.id.saveButton);
-        libraryButton = findViewById(R.id.libraryButton);
+        sendButton = findViewById(R.id.sendButton);
+        recordButton = findViewById(R.id.recordButton);
 
-        // --- NEW: Replaced OnClickListener with OnTouchListener ---
+        // --- Setup the RecyclerView ---
+        storyRecyclerView = findViewById(R.id.storyRecyclerView);
+        storyElements = new ArrayList<>();
+        storyCanvasAdapter = new StoryCanvasAdapter(storyElements);
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        storyRecyclerView.setLayoutManager(layoutManager);
+        storyRecyclerView.setAdapter(storyCanvasAdapter);
+
+        // --- Set initial AI prompt ---
+        addAiResponse("The " + genre + " story begins...");
+
+        // --- Set up input listeners ---
+        sendButton.setOnClickListener(v -> handleTextSend());
+
         recordButton.setOnTouchListener((v, event) -> {
             if (permissionToRecordAccepted) {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
+                        v.setPressed(true); // Show button pressed state
                         startRecording();
-                        recordButton.setText("Recording...");
                         break;
                     case MotionEvent.ACTION_UP:
+                        v.setPressed(false); // Reset button state
                         stopRecording();
-                        recordButton.setText("Send");
                         break;
                 }
             } else {
@@ -91,12 +115,46 @@ public class MainActivity extends AppCompatActivity {
             }
             return true;
         });
-
-        // --- Note: The original sendButton OnClickListener is now gone ---
-
-        saveButton.setOnClickListener(v -> saveStory());
-        libraryButton.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, LibraryActivity.class)));
     }
+
+    private void handleTextSend() {
+        String inputText = userInputEditText.getText().toString().trim();
+        if (!inputText.isEmpty()) {
+            addUserInput(inputText);
+            sendStoryContinuationRequest(inputText);
+            userInputEditText.setText(""); // Clear the input field
+        }
+    }
+
+    // --- Helper methods to add elements to the canvas ---
+    private void addUserInput(String text) {
+        storyElements.add(new StoryElement(text, StoryElement.TYPE_USER));
+        storyCanvasAdapter.notifyItemInserted(storyElements.size() - 1);
+        storyRecyclerView.scrollToPosition(storyElements.size() - 1);
+    }
+
+    private void addAiResponse(String text) {
+        storyElements.add(new StoryElement(text, StoryElement.TYPE_AI));
+        storyCanvasAdapter.notifyItemInserted(storyElements.size() - 1);
+        storyRecyclerView.scrollToPosition(storyElements.size() - 1);
+    }
+
+    private void addChapter(String title) {
+        storyElements.add(new StoryElement(title, StoryElement.TYPE_CHAPTER));
+        storyCanvasAdapter.notifyItemInserted(storyElements.size() - 1);
+        storyRecyclerView.scrollToPosition(storyElements.size() - 1);
+    }
+
+    // --- Helper method to get the full story text ---
+    private String getStoryContext() {
+        // Use Java 8 Stream API to join the text from all elements
+        return storyElements.stream()
+                .map(element -> element.text)
+                .collect(Collectors.joining("\n\n"));
+    }
+
+
+    // --- Audio Recording & Transcription ---
 
     private void startRecording() {
         fileName = getExternalCacheDir().getAbsolutePath() + "/whisprr_audio.mp3";
@@ -117,21 +175,31 @@ public class MainActivity extends AppCompatActivity {
 
     private void stopRecording() {
         if (recorder != null) {
-            recorder.stop();
-            recorder.release();
-            recorder = null;
-            Toast.makeText(this, "Transcribing...", Toast.LENGTH_SHORT).show();
-            transcribeAudioFile(fileName);
+            try {
+                recorder.stop();
+                recorder.release();
+                recorder = null;
+                Toast.makeText(this, "Transcribing...", Toast.LENGTH_SHORT).show();
+                transcribeAudioFile(fileName);
+            } catch (RuntimeException e) {
+                Log.e("MainActivity", "stopRecording failed", e);
+                // Handle case where recording is stopped too quickly
+            }
         }
     }
 
     private void transcribeAudioFile(String filePath) {
         File audioFile = new File(filePath);
+        // Ensure you have a secure way to store your API key
+        String authToken = "Bearer " + BuildConfig.HUGGING_FACE_API_KEY;
+
+        if (BuildConfig.HUGGING_FACE_API_KEY == null || BuildConfig.HUGGING_FACE_API_KEY.isEmpty()) {
+            Toast.makeText(this, "Hugging Face API Key not found.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
         RequestBody audioRequestBody = RequestBody.create(MediaType.parse("audio/*"), audioFile);
         HuggingFaceApiService hfApiService = HuggingFaceRetrofitClient.getApiService();
-
-        // IMPORTANT: Replace with your Hugging Face Token
-        String authToken = "Bearer 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";
 
         Call<WhisperResponse> call = hfApiService.transcribeAudio(authToken, audioRequestBody);
         call.enqueue(new Callback<WhisperResponse>() {
@@ -140,11 +208,13 @@ public class MainActivity extends AppCompatActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     String transcribedText = response.body().text;
                     Log.d("MainActivity", "Hugging Face Transcription: " + transcribedText);
-                    // Use the transcribed text as input for our story AI
-                    sendStoryContinuationRequest(transcribedText);
+                    runOnUiThread(() -> {
+                        addUserInput(transcribedText);
+                        sendStoryContinuationRequest(transcribedText);
+                    });
                 } else {
-                    Log.e("MainActivity", "HF API Error: " + response.code());
-                    Toast.makeText(MainActivity.this, "Transcription failed. Check logs.", Toast.LENGTH_SHORT).show();
+                    Log.e("MainActivity", "HF API Error: " + response.code() + " - " + response.message());
+                    Toast.makeText(MainActivity.this, "Transcription failed.", Toast.LENGTH_SHORT).show();
                 }
             }
             @Override
@@ -155,17 +225,12 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // MODIFIED to be reusable
-    private void sendStoryContinuationRequest(String userInput) {
-        String currentStory = storyTextView.getText().toString();
-        // The original logic for typing is now disabled, but we can keep the method
-        // in case we want a toggle between voice/text later.
-        if (userInput == null || userInput.trim().isEmpty()) {
-            Toast.makeText(this, "Input was empty.", Toast.LENGTH_SHORT).show();
-            return;
-        }
+    // --- Story Generation & Saving ---
 
-        StoryRequest request = new StoryRequest(aiName, "mystery", currentStory, userInput);
+    private void sendStoryContinuationRequest(String userInput) {
+        String currentStory = getStoryContext(); // Use the new helper method
+
+        StoryRequest request = new StoryRequest(aiName, genre, currentStory, userInput);
         ApiService apiService = RetrofitClient.getApiService();
         Call<StoryResponse> call = apiService.continueStory(request);
         call.enqueue(new Callback<StoryResponse>() {
@@ -173,41 +238,39 @@ public class MainActivity extends AppCompatActivity {
             public void onResponse(@NonNull Call<StoryResponse> call, @NonNull Response<StoryResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     String aiResponse = response.body().aiResponse;
-                    runOnUiThread(() -> storyTextView.append("\n\n" + aiResponse));
+                    runOnUiThread(() -> addAiResponse(aiResponse));
                 } else {
                     Log.e("MainActivity", "Story API Error: " + response.code());
+                    Toast.makeText(MainActivity.this, "AI failed to respond.", Toast.LENGTH_SHORT).show();
                 }
             }
             @Override
             public void onFailure(@NonNull Call<StoryResponse> call, @NonNull Throwable t) {
                 Log.e("MainActivity", "Story API Failure", t);
+                Toast.makeText(MainActivity.this, "Network error. AI unreachable.", Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-    // Add this entire new method to your MainActivity class
     private void saveStory() {
-        String fullStoryText = storyTextView.getText().toString();
+        String fullStoryText = getStoryContext(); // Use the new helper method
 
-        if (fullStoryText.isEmpty() || fullStoryText.equals("The story begins...")) {
+        if (storyElements.size() <= 1) { // Only contains the initial prompt
             Toast.makeText(this, "Cannot save an empty story.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // For now, we will treat the entire story as a single chapter.
         Chapter chapter1 = new Chapter(1, "Chapter 1", fullStoryText);
         List<Chapter> chapters = new ArrayList<>();
         chapters.add(chapter1);
 
-        // Create the main request object that our backend expects
         FullStoryCreate storyToSave = new FullStoryCreate(
-                "My New Story", // We can make the title dynamic later
-                "Mystery",      // We can make the genre dynamic later
-                aiName,         // Use the AI name passed from the WelcomeActivity
+                "My New Story", // TODO: Let user input a title before saving
+                genre,
+                aiName,
                 chapters
         );
 
-        // Get the ApiService and make the call to the /api/stories endpoint
         ApiService apiService = RetrofitClient.getApiService();
         Call<Story> call = apiService.createStory(storyToSave);
 
@@ -227,8 +290,6 @@ public class MainActivity extends AppCompatActivity {
                 Log.e("MainActivity", "Save Story Failed", t);
                 Toast.makeText(MainActivity.this, "Network failure while saving story.", Toast.LENGTH_SHORT).show();
             }
-
         });
-
     }
 }
