@@ -4,7 +4,6 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
-// Create a properties object and load the local.properties file
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
@@ -13,18 +12,15 @@ if (localPropertiesFile.exists()) {
 
 android {
     namespace = "com.example.app"
-    compileSdk = 36 // Updated from 34 to 36
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.app"
         minSdk = 24
-        targetSdk = 36 // Updated from 34 to 36
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        // Make the API key available in the BuildConfig class
         buildConfigField("String", "HUGGING_FACE_API_KEY", "\"${localProperties.getProperty("HUGGING_FACE_API_KEY")}\"")
     }
 
@@ -37,20 +33,23 @@ android {
             )
         }
     }
+
+    // UPDATED: Changed from Java 8 to Java 17
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
+
     buildFeatures {
         buildConfig = true
     }
 }
 
 dependencies {
-    // For making network calls
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    // For converting Java objects to and from JSON
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.picasso:picasso:2.8")
+    implementation("com.itextpdf:itextg:5.5.10")
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.activity)

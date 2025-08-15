@@ -18,41 +18,37 @@ public class StoryCanvasAdapter extends RecyclerView.Adapter<RecyclerView.ViewHo
 
     @Override
     public int getItemViewType(int position) {
+        // This method tells the adapter which type of view to use for each item.
         return storyElements.get(position).type;
     }
 
     @NonNull
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        // This method inflates the correct layout based on the viewType.
         LayoutInflater inflater = LayoutInflater.from(parent.getContext());
-        switch (viewType) {
-            case StoryElement.TYPE_USER:
-                View userView = inflater.inflate(R.layout.item_story_user, parent, false);
-                return new UserViewHolder(userView);
-            case StoryElement.TYPE_AI:
-                View aiView = inflater.inflate(R.layout.item_story_ai, parent, false);
-                return new AiViewHolder(aiView);
-            case StoryElement.TYPE_CHAPTER:
-                View chapterView = inflater.inflate(R.layout.item_story_chapter, parent, false);
-                return new ChapterViewHolder(chapterView);
-            default:
-                throw new IllegalArgumentException("Invalid view type");
+        if (viewType == StoryElement.TYPE_AI) {
+            View aiView = inflater.inflate(R.layout.item_story_ai, parent, false);
+            return new AiViewHolder(aiView);
+        } else if (viewType == StoryElement.TYPE_CHAPTER) {
+            View chapterView = inflater.inflate(R.layout.item_story_chapter, parent, false);
+            return new ChapterViewHolder(chapterView);
+        } else { // Default to the user view
+            View userView = inflater.inflate(R.layout.item_story_user, parent, false);
+            return new UserViewHolder(userView);
         }
     }
 
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+        // This method sets the text for the correct view.
         StoryElement element = storyElements.get(position);
-        switch (holder.getItemViewType()) {
-            case StoryElement.TYPE_USER:
-                ((UserViewHolder) holder).userTextView.setText(element.text);
-                break;
-            case StoryElement.TYPE_AI:
-                ((AiViewHolder) holder).aiTextView.setText(element.text);
-                break;
-            case StoryElement.TYPE_CHAPTER:
-                ((ChapterViewHolder) holder).chapterTextView.setText(element.text);
-                break;
+        if (holder.getItemViewType() == StoryElement.TYPE_AI) {
+            ((AiViewHolder) holder).aiTextView.setText(element.text);
+        } else if (holder.getItemViewType() == StoryElement.TYPE_CHAPTER) {
+            ((ChapterViewHolder) holder).chapterTextView.setText(element.text);
+        } else {
+            ((UserViewHolder) holder).userTextView.setText(element.text);
         }
     }
 

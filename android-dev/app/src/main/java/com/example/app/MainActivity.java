@@ -1,59 +1,81 @@
 package com.example.app;
 
+import android.os.Handler;
+import android.os.Looper;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.media.MediaRecorder;
 import android.os.Bundle;
+import android.text.Spannable;
+import android.text.SpannableStringBuilder;
+import android.text.style.ForegroundColorSpan;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.MotionEvent;
-import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.example.app.BuildConfig;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import okhttp3.MediaType;
 import okhttp3.RequestBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-import com.example.app.BuildConfig;
+import android.os.Environment;
+import com.itextpdf.text.Document;
+import com.itextpdf.text.Paragraph;
+import com.itextpdf.text.pdf.PdfWriter;
+import java.io.FileOutputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
     private String aiName;
     private String genre;
 
-    // --- UI elements for the canvas ---
-    private RecyclerView storyRecyclerView;
-    private StoryCanvasAdapter storyCanvasAdapter;
-    private List<StoryElement> storyElements;
+    // --- UI elements for the canvas and chat ---
+    private TextView storyTextView;
+    private RecyclerView chatRecyclerView;
     private EditText userInputEditText;
     private Button sendButton;
     private ImageButton recordButton;
-    // Note: save and library buttons can be re-added to a Toolbar later
 
-    // Permissions
+    // --- Data sources for the two panels ---
+    private SpannableStringBuilder storyBuilder;
+    private List<StoryElement> chatElements = new ArrayList<>();
+    private StoryCanvasAdapter chatAdapter;
+
+    // Permissions & Audio
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
     private boolean permissionToRecordAccepted = false;
     private final String[] permissions = {Manifest.permission.RECORD_AUDIO};
-
-    // Audio Recording
     private MediaRecorder recorder = null;
     private String fileName = null;
+
+    private Handler typewriterHandler = new Handler(Looper.getMainLooper());
+
+
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
@@ -73,40 +95,41 @@ public class MainActivity extends AppCompatActivity {
 
         ActivityCompat.requestPermissions(this, permissions, REQUEST_RECORD_AUDIO_PERMISSION);
 
-        // --- Get data from previous activities ---
         aiName = getIntent().getStringExtra("AI_NAME");
         genre = getIntent().getStringExtra("GENRE");
         if (aiName == null) aiName = "Orion";
         if (genre == null) genre = "Mystery";
 
-        // --- Find UI Views ---
+        // Find UI Views
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        storyTextView = findViewById(R.id.storyTextView);
+        chatRecyclerView = findViewById(R.id.chatRecyclerView);
         userInputEditText = findViewById(R.id.userInputEditText);
         sendButton = findViewById(R.id.sendButton);
         recordButton = findViewById(R.id.recordButton);
 
-        // --- Setup the RecyclerView ---
-        storyRecyclerView = findViewById(R.id.storyRecyclerView);
-        storyElements = new ArrayList<>();
-        storyCanvasAdapter = new StoryCanvasAdapter(storyElements);
-        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
-        storyRecyclerView.setLayoutManager(layoutManager);
-        storyRecyclerView.setAdapter(storyCanvasAdapter);
+        // Initialize Story Canvas
+        storyBuilder = new SpannableStringBuilder();
+        appendStoryParagraph("The " + genre + " story begins...\n\n");
 
-        // --- Set initial AI prompt ---
-        addAiResponse("The " + genre + " story begins...");
+        // Initialize Chat Log
+        chatRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        chatAdapter = new StoryCanvasAdapter(chatElements);
+        chatRecyclerView.setAdapter(chatAdapter);
+        addMessageToChat("Hello! I'm " + aiName + ". How should we begin our " + genre + " story?", StoryElement.TYPE_AI);
 
-        // --- Set up input listeners ---
+        // Set up input listeners
         sendButton.setOnClickListener(v -> handleTextSend());
-
         recordButton.setOnTouchListener((v, event) -> {
             if (permissionToRecordAccepted) {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
-                        v.setPressed(true); // Show button pressed state
+                        v.setPressed(true);
                         startRecording();
                         break;
                     case MotionEvent.ACTION_UP:
-                        v.setPressed(false); // Reset button state
+                        v.setPressed(false);
                         stopRecording();
                         break;
                 }
@@ -117,45 +140,128 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.main_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        int itemId = item.getItemId();
+        if (itemId == R.id.action_save) {
+            saveStory();
+            return true;
+        } else if (itemId == R.id.action_library) {
+            Intent intent = new Intent(MainActivity.this, LibraryActivity.class);
+            startActivity(intent);
+            return true;
+        } else if (itemId == R.id.action_export) {
+            // NEW: Handle the export action
+            exportStoryAsPdf();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+
     private void handleTextSend() {
         String inputText = userInputEditText.getText().toString().trim();
         if (!inputText.isEmpty()) {
-            addUserInput(inputText);
+            addMessageToChat(inputText, StoryElement.TYPE_USER);
             sendStoryContinuationRequest(inputText);
-            userInputEditText.setText(""); // Clear the input field
+            userInputEditText.setText("");
         }
     }
 
-    // --- Helper methods to add elements to the canvas ---
-    private void addUserInput(String text) {
-        storyElements.add(new StoryElement(text, StoryElement.TYPE_USER));
-        storyCanvasAdapter.notifyItemInserted(storyElements.size() - 1);
-        storyRecyclerView.scrollToPosition(storyElements.size() - 1);
+    // --- Helper methods for UI updates ---
+    private void appendStoryParagraph(String text) {
+        storyBuilder.append(text);
+        storyTextView.setText(storyBuilder);
     }
 
-    private void addAiResponse(String text) {
-        storyElements.add(new StoryElement(text, StoryElement.TYPE_AI));
-        storyCanvasAdapter.notifyItemInserted(storyElements.size() - 1);
-        storyRecyclerView.scrollToPosition(storyElements.size() - 1);
+    private void replaceStoryText(String newFullStory) {
+        storyBuilder.clear();
+        storyBuilder.append(newFullStory);
+        storyTextView.setText(storyBuilder);
     }
 
-    private void addChapter(String title) {
-        storyElements.add(new StoryElement(title, StoryElement.TYPE_CHAPTER));
-        storyCanvasAdapter.notifyItemInserted(storyElements.size() - 1);
-        storyRecyclerView.scrollToPosition(storyElements.size() - 1);
+    private void addMessageToChat(String text, int type) {
+        chatElements.add(new StoryElement(text, type));
+        chatAdapter.notifyItemInserted(chatElements.size() - 1);
+        chatRecyclerView.scrollToPosition(chatElements.size() - 1);
     }
 
-    // --- Helper method to get the full story text ---
-    private String getStoryContext() {
-        // Use Java 8 Stream API to join the text from all elements
-        return storyElements.stream()
-                .map(element -> element.text)
-                .collect(Collectors.joining("\n\n"));
+    private void addChapterTitle(String title) {
+        // Add to story canvas
+        storyBuilder.append("\n\n--- ").append(title).append(" ---\n\n");
+        storyTextView.setText(storyBuilder);
+
+        // Add to chat log
+        addMessageToChat(title, StoryElement.TYPE_CHAPTER);
+    }
+    // --- Story Generation Logic ---
+    private void sendStoryContinuationRequest(String userInput) {
+        String currentStory = storyBuilder.toString();
+        StoryRequest request = new StoryRequest(aiName, genre, currentStory, userInput);
+        ApiService apiService = RetrofitClient.getApiService();
+        Call<StoryResponse> call = apiService.continueStory(request);
+        call.enqueue(new Callback<StoryResponse>() {
+            @Override
+            public void onResponse(@NonNull Call<StoryResponse> call, @NonNull Response<StoryResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    StoryResponse storyResponse = response.body();
+                    runOnUiThread(() -> {
+                        // Check for a new chapter title FIRST
+                        if (storyResponse.newChapterTitle != null && !storyResponse.newChapterTitle.isEmpty()) {
+                            addChapterTitle(storyResponse.newChapterTitle);
+                        }
+
+                        // Handle the AI's action
+                        if ("REPLACE".equals(storyResponse.action)) {
+                            replaceStoryText(storyResponse.storyText);
+                        } else if ("APPEND".equals(storyResponse.action)) {
+                            animateTypewriter(storyResponse.storyText);
+                        }
+                        // If the action is "REFUSE" or "CHAT", we do nothing to the story canvas.
+
+                        // Always add the AI's conversational message to the chat
+                        addMessageToChat(storyResponse.chatResponse, StoryElement.TYPE_AI);
+                    });
+                } else {
+                    Log.e("MainActivity", "Story API Error: " + response.code());
+                    Toast.makeText(MainActivity.this, "AI failed to respond.", Toast.LENGTH_SHORT).show();
+                }
+            }
+            @Override
+            public void onFailure(@NonNull Call<StoryResponse> call, @NonNull Throwable t) {
+                Log.e("MainActivity", "Story API Failure", t);
+                Toast.makeText(MainActivity.this, "Network error. AI unreachable.", Toast.LENGTH_SHORT).show();
+                runOnUiThread(() -> {
+                    addMessageToChat("This is a test response from the AI.", StoryElement.TYPE_AI);
+                    animateTypewriter("This is a test paragraph to see the typewriter effect working.");
+                });
+            }
+        });
     }
 
+    private void animateTypewriter(final String text) {
+        storyBuilder.append("\n\n");
+        final int[] index = {0};
+        typewriterHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (index[0] < text.length()) {
+                    storyBuilder.append(text.charAt(index[0]));
+                    storyTextView.setText(storyBuilder);
+                    index[0]++;
+                    typewriterHandler.postDelayed(this, 5);
+                }
+            }
+        }, 20);
+    }
 
     // --- Audio Recording & Transcription ---
-
     private void startRecording() {
         fileName = getExternalCacheDir().getAbsolutePath() + "/whisprr_audio.mp3";
         recorder = new MediaRecorder();
@@ -183,14 +289,12 @@ public class MainActivity extends AppCompatActivity {
                 transcribeAudioFile(fileName);
             } catch (RuntimeException e) {
                 Log.e("MainActivity", "stopRecording failed", e);
-                // Handle case where recording is stopped too quickly
             }
         }
     }
 
     private void transcribeAudioFile(String filePath) {
         File audioFile = new File(filePath);
-        // Ensure you have a secure way to store your API key
         String authToken = "Bearer " + BuildConfig.HUGGING_FACE_API_KEY;
 
         if (BuildConfig.HUGGING_FACE_API_KEY == null || BuildConfig.HUGGING_FACE_API_KEY.isEmpty()) {
@@ -198,7 +302,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        RequestBody audioRequestBody = RequestBody.create(MediaType.parse("audio/*"), audioFile);
+        RequestBody audioRequestBody = RequestBody.create(MediaType.parse("audio/mp3"), audioFile);
         HuggingFaceApiService hfApiService = HuggingFaceRetrofitClient.getApiService();
 
         Call<WhisperResponse> call = hfApiService.transcribeAudio(authToken, audioRequestBody);
@@ -207,13 +311,16 @@ public class MainActivity extends AppCompatActivity {
             public void onResponse(@NonNull Call<WhisperResponse> call, @NonNull Response<WhisperResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     String transcribedText = response.body().text;
-                    Log.d("MainActivity", "Hugging Face Transcription: " + transcribedText);
                     runOnUiThread(() -> {
-                        addUserInput(transcribedText);
+                        addMessageToChat(transcribedText, StoryElement.TYPE_USER);
                         sendStoryContinuationRequest(transcribedText);
                     });
                 } else {
-                    Log.e("MainActivity", "HF API Error: " + response.code() + " - " + response.message());
+                    try {
+                        Log.e("MainActivity", "HF API Error: " + response.code() + " - " + response.errorBody().string());
+                    } catch (IOException e) {
+                        Log.e("MainActivity", "HF API Error: " + response.code());
+                    }
                     Toast.makeText(MainActivity.this, "Transcription failed.", Toast.LENGTH_SHORT).show();
                 }
             }
@@ -225,37 +332,11 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // --- Story Generation & Saving ---
-
-    private void sendStoryContinuationRequest(String userInput) {
-        String currentStory = getStoryContext(); // Use the new helper method
-
-        StoryRequest request = new StoryRequest(aiName, genre, currentStory, userInput);
-        ApiService apiService = RetrofitClient.getApiService();
-        Call<StoryResponse> call = apiService.continueStory(request);
-        call.enqueue(new Callback<StoryResponse>() {
-            @Override
-            public void onResponse(@NonNull Call<StoryResponse> call, @NonNull Response<StoryResponse> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    String aiResponse = response.body().aiResponse;
-                    runOnUiThread(() -> addAiResponse(aiResponse));
-                } else {
-                    Log.e("MainActivity", "Story API Error: " + response.code());
-                    Toast.makeText(MainActivity.this, "AI failed to respond.", Toast.LENGTH_SHORT).show();
-                }
-            }
-            @Override
-            public void onFailure(@NonNull Call<StoryResponse> call, @NonNull Throwable t) {
-                Log.e("MainActivity", "Story API Failure", t);
-                Toast.makeText(MainActivity.this, "Network error. AI unreachable.", Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
+    // --- Story Saving Logic ---
     private void saveStory() {
-        String fullStoryText = getStoryContext(); // Use the new helper method
+        String fullStoryText = storyBuilder.toString();
 
-        if (storyElements.size() <= 1) { // Only contains the initial prompt
+        if (fullStoryText.trim().equals("The " + genre + " story begins...")) {
             Toast.makeText(this, "Cannot save an empty story.", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -265,7 +346,7 @@ public class MainActivity extends AppCompatActivity {
         chapters.add(chapter1);
 
         FullStoryCreate storyToSave = new FullStoryCreate(
-                "My New Story", // TODO: Let user input a title before saving
+                "My New " + genre + " Story",
                 genre,
                 aiName,
                 chapters
@@ -278,8 +359,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<Story> call, Response<Story> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    String successMessage = "Story '" + response.body().title + "' saved successfully!";
-                    Toast.makeText(MainActivity.this, successMessage, Toast.LENGTH_LONG).show();
+                    Story savedStory = response.body();
+                    Toast.makeText(MainActivity.this, "Story saved! Generating cover...", Toast.LENGTH_SHORT).show();
+                    triggerCoverGeneration(savedStory.id);
                 } else {
                     Toast.makeText(MainActivity.this, "Error saving story: " + response.message(), Toast.LENGTH_SHORT).show();
                 }
@@ -291,5 +373,54 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, "Network failure while saving story.", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+    private void triggerCoverGeneration(int storyId) {
+        ApiService apiService = RetrofitClient.getApiService();
+        Call<Story> call = apiService.generateCover(storyId);
+
+        call.enqueue(new Callback<Story>() {
+            @Override
+            public void onResponse(Call<Story> call, Response<Story> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    Toast.makeText(MainActivity.this, "Cover generated successfully!", Toast.LENGTH_LONG).show();
+                } else {
+                    Log.e("MainActivity", "Cover Gen Error: " + response.message());
+                    Toast.makeText(MainActivity.this, "Could not generate cover.", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Story> call, Throwable t) {
+                Log.e("MainActivity", "Cover Gen Failed", t);
+                Toast.makeText(MainActivity.this, "Network failure while generating cover.", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+    private void exportStoryAsPdf() {
+        String fullStoryText = storyBuilder.toString();
+        if (fullStoryText.trim().equals("The " + genre + " story begins...")) {
+            Toast.makeText(this, "Cannot export an empty story.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        try {
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
+            String fileName = "WhisprrStory_" + timeStamp + ".pdf";
+            File pdfDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+            if (!pdfDir.exists()) {
+                pdfDir.mkdirs();
+            }
+            File pdfFile = new File(pdfDir, fileName);
+            Document document = new Document();
+            PdfWriter.getInstance(document, new FileOutputStream(pdfFile));
+            document.open();
+            document.add(new Paragraph("My New " + genre + " Story"));
+            document.add(new Paragraph("\n\n"));
+            document.add(new Paragraph(fullStoryText));
+            document.close();
+            Toast.makeText(this, "PDF saved to Documents folder!", Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Log.e("MainActivity", "Error creating PDF", e);
+            Toast.makeText(this, "Could not create PDF.", Toast.LENGTH_SHORT).show();
+        }
     }
 }

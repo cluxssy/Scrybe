@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_save"
+        android:title="Save Story"
+        android:icon="@android:drawable/ic_menu_save"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_library"
+        android:title="View Library"
+        android:icon="@android:drawable/ic_menu_agenda"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_export"
+        android:title="Export as PDF"
+        android:icon="@android:drawable/ic_menu_share"
+        app:showAsAction="ifRoom" />
+</menu>

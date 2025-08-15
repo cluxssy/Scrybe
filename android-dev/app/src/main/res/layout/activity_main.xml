@@ -5,13 +5,57 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/storyRecyclerView"
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        android:elevation="4dp"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        android:layout_alignParentTop="true"/>
+
+    <LinearLayout
+        android:id="@+id/content_area"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_below="@id/toolbar"
         android:layout_above="@+id/inputControls"
-        android:clipToPadding="false"
-        android:padding="8dp"/>
+        android:orientation="vertical">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="2"
+            android:padding="8dp"
+            android:background="#F7F7F7">
+            <ScrollView
+                android:id="@+id/storyScrollView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+                <TextView
+                    android:id="@+id/storyTextView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="18sp"
+                    android:lineSpacingExtra="4dp"
+                    android:padding="8dp"
+                    android:text="The story will appear here..."/>
+            </ScrollView>
+        </FrameLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="?android:attr/listDivider" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/chatRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:padding="8dp"
+            android:clipToPadding="false"/>
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/inputControls"
@@ -27,7 +71,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="What happens next?"/>
+            android:hint="Your instructions..."/>
 
         <Button
             android:id="@+id/sendButton"
@@ -42,7 +86,6 @@
             android:layout_height="wrap_content"
             android:src="@android:drawable/ic_btn_speak_now"
             android:layout_marginStart="8dp"/>
-
     </LinearLayout>
 
 </RelativeLayout>
