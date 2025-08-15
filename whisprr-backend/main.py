@@ -1,6 +1,6 @@
 import os
 import google.generativeai as genai
-from fastapi import FastAPI, Depends, HTTPException, Request, status
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -8,14 +8,13 @@ from sqlmodel import Session, SQLModel, create_engine, select
 import models
 import json
 import requests
-from typing import Optional
-
+from typing import Optional, List
+from sqlalchemy.orm import selectinload
 
 # --- INITIALIZATION ---
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-# --- UPDATED: Use the specific models you requested ---
 text_model = genai.GenerativeModel("gemini-1.5-flash-latest")
 
 HF_API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
@@ -23,12 +22,12 @@ HF_API_KEY = os.getenv("HUGGING_FACE_API_KEY")
 
 app = FastAPI()
 
-# --- STATIC FILES (Cover images) ---
+# --- STATIC FILES ---
 COVERS_DIR = "covers"
 os.makedirs(COVERS_DIR, exist_ok=True)
 app.mount("/covers", StaticFiles(directory=COVERS_DIR), name="covers")
 
-# --- DATABASE SETUP ---
+# --- DATABASE ---
 DATABASE_URL = "sqlite:///database.db"
 engine = create_engine(DATABASE_URL, echo=True)
 
@@ -44,7 +43,6 @@ def get_session():
         yield session
 
 # --- CONFIG VALIDATION ---
-
 def require_hf_key():
     if not HF_API_KEY or not HF_API_KEY.strip():
         raise HTTPException(status_code=500, detail="Hugging Face API key not found. Set HUGGING_FACE_API_KEY in .env")
@@ -58,7 +56,7 @@ def health():
         "hf_model": HF_API_URL.split("/models/")[-1],
     }
 
-# --- DATA MODELS ---
+# --- REQUEST MODELS ---
 class StoryRequest(BaseModel):
     ai_name: str = "Orion"
     genre: str
@@ -75,73 +73,67 @@ class FullStoryCreate(BaseModel):
     title: str
     genre: str
     ai_name: str
-    chapters: list[models.Chapter]
+    chapters: List[models.ChapterCreate]  # NEW: use Pydantic model for chapters
 
-# --- API ENDPOINTS ---
+# --- STORY GENERATION ---
 @app.post("/api/continue_story", response_model=StoryResponse)
 async def continue_story(request: StoryRequest):
     """
     Analyzes user input to continue, edit, refuse, chat, or start a new chapter.
     """
+    # This new prompt is more direct and less likely to confuse the AI.
     prompt = f"""
-    You are {request.ai_name}, a master storyteller and creative partner.
-    You have five tasks: Writing, Editing, Refusing, Conversing, and Chaptering.
+    You are a backend AI that MUST ONLY return a JSON object. Do not return any other text, explanation, or markdown.
 
-    Here is the story so far:
+    You are a creative partner named {request.ai_name}.
+    Your task is to analyze the user's instruction based on the story so far and choose one of five actions:
+
+    1.  **APPEND**: For a regular creative continuation.
+    2.  **REPLACE**: If the user gives an editing command like "change the character's name" or "rewrite that last part."
+    3.  **CHAPTER**: If the story reaches a natural break (climax, setting change, time jump).
+    4.  **CHAT**: If the user is just talking to you ("hello", "what's next?").
+    5.  **REFUSE**: If the user asks for harmful or explicit content.
+
+    STORY SO FAR:
     ---
     {request.story_context}
     ---
-    Here is the user's latest instruction:
+    USER'S INSTRUCTION:
     ---
     {request.user_input}
     ---
 
-    Analyze the user's instruction and the story's progression.
+    Based on your analysis, generate a valid JSON response with the following structure.
 
-    1.  If the story has reached a natural break point (a climax, a change in setting, or a significant time jump), start a new chapter.
-        - Your response MUST be a JSON object with the following structure:
-        {{
-          "action": "APPEND",
-          "story_text": "The first paragraph(s) of the new chapter.",
-          "chat_response": "A brief, conversational reply...",
-          "new_chapter_title": "A fitting title for the NEW chapter."
-        }}
+    -   For APPEND, REPLACE, or CHAPTER, the JSON must contain "action", "story_text", and "chat_response". For CHAPTER, also include "new_chapter_title".
+    -   For CHAT or REFUSE, the JSON must contain "action" and "chat_response". "story_text" should be an empty string.
 
-    2.  If it's a regular CREATIVE CONTINUATION... (Your response MUST be a JSON object with "action": "APPEND" and no new_chapter_title...)
-
-    3.  If it's an EDITING COMMAND... (Your response MUST be a JSON object with "action": "REPLACE" and no new_chapter_title...)
-
-    4.  If the instruction asks for harmful/explicit content... (Your response MUST be a JSON object with "action": "REFUSE", "story_text": "", and no new_chapter_title...)
-
-    5.  If the instruction is PURELY CONVERSATIONAL... (Your response MUST be a JSON object with "action": "CHAT", "story_text": "", and no new_chapter_title...)
-
-    Your JSON response must be valid and contain nothing else.
+    Your response must be a single, valid JSON object and nothing else.
     """
     try:
         response = text_model.generate_content(prompt)
-        cleaned_response_text = (response.text or "").strip()
-        for fence in ("```json", "```JSON", "```", "`"):
-            cleaned_response_text = cleaned_response_text.replace(fence, "")
+        cleaned_response_text = (response.text or "").strip().removeprefix("```json").removesuffix("```")
+        
         response_data = json.loads(cleaned_response_text)
+        
         return StoryResponse(
-            action=response_data.get("action", "APPEND"),
+            action=response_data.get("action", "CHAT"),
             story_text=response_data.get("story_text", ""),
-            chat_response=response_data.get("chat_response", "Let's try that again."),
+            chat_response=response_data.get("chat_response", "I seem to be at a loss for words. Could you try again?"),
             new_chapter_title=response_data.get("new_chapter_title")
         )
     except (json.JSONDecodeError, Exception) as e:
-        print(f"An error occurred: {e}")
+        print(f"An error occurred decoding the AI's JSON response: {e}")
+        print(f"Raw AI Response was: {response.text}") # Added for better debugging
         return StoryResponse(
             action="CHAT",
             story_text="",
             chat_response="I'm having a little trouble thinking right now. Could you rephrase that?"
         )
 
-@app.post("/api/stories", response_model=models.Story)
+# --- CREATE STORY ---
+@app.post("/api/stories", response_model=models.StoryRead)
 def create_story(story_data: FullStoryCreate, session: Session = Depends(get_session)):
-    """
-    Creates a new story and its chapters in the database.
-    """
     story_to_create = models.Story(
         title=story_data.title,
         genre=story_data.genre,
@@ -159,42 +151,41 @@ def create_story(story_data: FullStoryCreate, session: Session = Depends(get_ses
     session.refresh(story_to_create)
     return story_to_create
 
-@app.get("/api/stories", response_model=list[models.Story])
+# --- GET ALL STORIES (with chapters) ---
+@app.get("/api/stories", response_model=List[models.StoryRead])
 def read_stories(session: Session = Depends(get_session)):
-    """
-    Returns a list of all stories in the database.
-    """
-    stories = session.exec(select(models.Story)).all()
+    stories = session.exec(
+        select(models.Story).options(selectinload(models.Story.chapters))
+    ).all()
     return stories
 
-@app.get("/api/stories/{story_id}", response_model=models.Story)
+# --- GET SINGLE STORY (with chapters) ---
+@app.get("/api/stories/{story_id}", response_model=models.StoryRead)
 def read_story(story_id: int, session: Session = Depends(get_session)):
-    """
-    Returns a single story by its ID, including all its chapters.
-    """
-    story = session.get(models.Story, story_id)
+    story = session.exec(
+        select(models.Story)
+        .where(models.Story.id == story_id)
+        .options(selectinload(models.Story.chapters))
+    ).first()
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")
     return story
 
-@app.post("/api/stories/{story_id}/generate_cover", response_model=models.Story)
+# --- GENERATE COVER IMAGE ---
+@app.post("/api/stories/{story_id}/generate_cover", response_model=models.StoryRead)
 def generate_cover(story_id: int, request: Request, session: Session = Depends(get_session)):
-    """
-    Summarizes a story and generates a book cover image for it using the Hugging Face Inference API (Stable Diffusion XL).
-    - Saves the image under ./covers and serves it at /covers/{filename}
-    - Returns the updated Story with cover_image_url populated
-    """
     require_hf_key()
 
-    story = session.get(models.Story, story_id)
+    story = session.exec(
+        select(models.Story).options(selectinload(models.Story.chapters))
+        .where(models.Story.id == story_id)
+    ).first()
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")
 
-    # Ensure the story has chapters/content
-    if not getattr(story, "chapters", None) or len(story.chapters) == 0:
+    if not story.chapters:
         raise HTTPException(status_code=400, detail="Story has no chapters to summarize for cover generation")
 
-    # 1) Build a concise, visual summary for the image prompt using all chapters
     try:
         full_text = "\n\n".join([c.content for c in story.chapters])
         summary_prompt = (
@@ -206,10 +197,8 @@ def generate_cover(story_id: int, request: Request, session: Session = Depends(g
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gemini summarization failed: {e}")
 
-    # 2) Create the final image generation prompt
     image_prompt = f"A professional book cover for a {story.genre} novel titled '{story.title}'. {visual_summary}"
 
-    # 3) Call the Hugging Face Inference API
     headers = {
         "Authorization": f"Bearer {HF_API_KEY}",
         "Accept": "image/png",
@@ -223,43 +212,23 @@ def generate_cover(story_id: int, request: Request, session: Session = Depends(g
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Hugging Face request failed: {e}")
 
-    # 4) Handle HF response
     if hf_resp.status_code != 200:
-        # Try to parse error body for clarity
-        err_text = hf_resp.text
         try:
             err_json = hf_resp.json()
-            err_text = err_json.get("error") or err_text
+            err_text = err_json.get("error") or hf_resp.text
         except Exception:
-            pass
-
-        if hf_resp.status_code in (401, 403):
-            raise HTTPException(status_code=401, detail=f"Invalid or unauthorized Hugging Face key: {err_text}")
-        if hf_resp.status_code == 503:
-            raise HTTPException(status_code=503, detail=f"Model is loading or unavailable on Hugging Face: {err_text}")
+            err_text = hf_resp.text
         raise HTTPException(status_code=hf_resp.status_code, detail=f"Hugging Face API error: {err_text}")
 
-    content_type = hf_resp.headers.get("content-type", "")
-    if not content_type.startswith("image/"):
-        # Sometimes HF returns JSON even with 200; guard against saving non-image
-        try:
-            as_json = hf_resp.json()
-            raise HTTPException(status_code=500, detail=f"Unexpected non-image response from Hugging Face: {as_json}")
-        except Exception:
-            raise HTTPException(status_code=500, detail="Unexpected non-image response from Hugging Face")
+    if not hf_resp.headers.get("content-type", "").startswith("image/"):
+        raise HTTPException(status_code=500, detail="Unexpected non-image response from Hugging Face")
 
-    # 5) Save image to ./covers and build a public URL via mounted static path
-    image_bytes = hf_resp.content
     filename = f"cover_{story_id}.png"
     filepath = os.path.join(COVERS_DIR, filename)
     with open(filepath, "wb") as f:
-        f.write(image_bytes)
+        f.write(hf_resp.content)
 
-    # Build absolute URL: base_url already ends with '/'
-    image_url = str(request.base_url) + f"covers/{filename}"
-
-    # 6) Persist to DB and return updated Story
-    story.cover_image_url = image_url
+    story.cover_image_url = str(request.base_url) + f"covers/{filename}"
     session.add(story)
     session.commit()
     session.refresh(story)

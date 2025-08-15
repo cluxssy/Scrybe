@@ -1,5 +1,5 @@
-
 from typing import List, Optional
+from pydantic import BaseModel
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -23,3 +23,43 @@ class Chapter(SQLModel, table=True):
     # This links a chapter back to its parent story
     story_id: Optional[int] = Field(default=None, foreign_key="story.id")
     story: Optional[Story] = Relationship(back_populates="chapters")
+
+
+# Pydantic schemas for reading data
+class ChapterRead(BaseModel):
+    id: int
+    chapter_number: int
+    title: str
+    content: str
+
+    class Config:
+        from_attributes = True
+
+class ChapterCreate(BaseModel):
+    chapter_number: int
+    title: str
+    content: str
+
+    class Config:
+        from_attributes = True
+
+
+class StoryRead(BaseModel):
+    id: int
+    title: str
+    genre: str
+    ai_name: str
+    cover_image_url: Optional[str]
+    chapters: List[ChapterRead] = []
+
+    class Config:
+        from_attributes = True
+
+class StoryCreate(BaseModel):
+    title: str
+    genre: str
+    ai_name: str
+    chapters: List[ChapterCreate]
+
+    class Config:
+        from_attributes = True

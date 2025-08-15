@@ -48,6 +48,13 @@ import java.io.FileOutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import android.net.Uri;
+import androidx.core.content.FileProvider;
+import com.itextpdf.text.Font;
+import com.itextpdf.text.Image;
+import java.io.InputStream;
+import java.net.URL;
+import android.os.StrictMode;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -397,30 +404,75 @@ public class MainActivity extends AppCompatActivity {
         });
     }
     private void exportStoryAsPdf() {
+        // Allow network operations on the main thread for image downloading
+        // Note: In a production app, this should be done in a background thread.
+        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+        StrictMode.setThreadPolicy(policy);
+
         String fullStoryText = storyBuilder.toString();
         if (fullStoryText.trim().equals("The " + genre + " story begins...")) {
             Toast.makeText(this, "Cannot export an empty story.", Toast.LENGTH_SHORT).show();
             return;
         }
+
         try {
             String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
-            String fileName = "WhisprrStory_" + timeStamp + ".pdf";
+            String fileName = "ScrybeStory_" + timeStamp + ".pdf";
             File pdfDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+
             if (!pdfDir.exists()) {
                 pdfDir.mkdirs();
             }
+
             File pdfFile = new File(pdfDir, fileName);
+
             Document document = new Document();
             PdfWriter.getInstance(document, new FileOutputStream(pdfFile));
             document.open();
-            document.add(new Paragraph("My New " + genre + " Story"));
-            document.add(new Paragraph("\n\n"));
-            document.add(new Paragraph(fullStoryText));
+
+            // --- Add Cover Image ---
+            // This part needs the story object, which we don't have here.
+            // For now, we will skip adding the cover image directly to the PDF from this screen.
+            // A more advanced implementation would pass the full story object to this activity.
+
+            // --- Add Title and Chapters with Formatting ---
+            Font titleFont = new Font(Font.FontFamily.TIMES_ROMAN, 22, Font.BOLD);
+            Font chapterFont = new Font(Font.FontFamily.TIMES_ROMAN, 18, Font.BOLD);
+            Font bodyFont = new Font(Font.FontFamily.TIMES_ROMAN, 12, Font.NORMAL);
+
+            document.add(new Paragraph("My New " + genre + " Story", titleFont));
+
+            // Split the story into chapters based on our delimiter
+            String[] chapters = fullStoryText.split("\n\n--- ");
+
+            for (int i = 0; i < chapters.length; i++) {
+                String chapterContent = chapters[i];
+                if (i > 0) { // The first element is the beginning of the story
+                    String[] chapterParts = chapterContent.split(" ---\n\n");
+                    String chapterTitle = chapterParts[0];
+                    document.add(new Paragraph("\n\n" + chapterTitle, chapterFont));
+                    if (chapterParts.length > 1) {
+                        document.add(new Paragraph(chapterParts[1], bodyFont));
+                    }
+                } else {
+                    document.add(new Paragraph(chapterContent, bodyFont));
+                }
+            }
+
             document.close();
-            Toast.makeText(this, "PDF saved to Documents folder!", Toast.LENGTH_LONG).show();
+
+            Uri pdfUri = FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".provider", pdfFile);
+
+            Intent shareIntent = new Intent(Intent.ACTION_SEND);
+            shareIntent.setType("application/pdf");
+            shareIntent.putExtra(Intent.EXTRA_STREAM, pdfUri);
+            shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            startActivity(Intent.createChooser(shareIntent, "Share Story PDF"));
+
         } catch (Exception e) {
-            Log.e("MainActivity", "Error creating PDF", e);
-            Toast.makeText(this, "Could not create PDF.", Toast.LENGTH_SHORT).show();
+            Log.e("MainActivity", "Error creating or sharing PDF", e);
+            Toast.makeText(this, "Could not create or share PDF.", Toast.LENGTH_SHORT).show();
         }
     }
 }

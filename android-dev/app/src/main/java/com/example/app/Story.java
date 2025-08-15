@@ -1,10 +1,10 @@
 package com.example.app;
 
-// In Story.java
 import com.google.gson.annotations.SerializedName;
+import java.io.Serializable; // <-- Import Serializable
 import java.util.List;
 
-public class Story {
+public class Story implements Serializable { // <-- Implement Serializable
 
     @SerializedName("id")
     public int id;

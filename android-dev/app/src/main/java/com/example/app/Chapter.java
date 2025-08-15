@@ -1,9 +1,9 @@
 package com.example.app;
 
-// In Chapter.java
 import com.google.gson.annotations.SerializedName;
+import java.io.Serializable; // <-- Import Serializable
 
-public class Chapter {
+public class Chapter implements Serializable { // <-- Implement Serializable
 
     @SerializedName("id")
     public int id;
@@ -20,7 +20,6 @@ public class Chapter {
     @SerializedName("story_id")
     public int story_id;
 
-    // This constructor is used when creating a new story to send to the backend
     public Chapter(int chapterNumber, String title, String content) {
         this.chapter_number = chapterNumber;
         this.title = title;
