@@ -100,7 +100,7 @@ async def continue_story(request: StoryRequest):
     ---
     USER'S INSTRUCTION:
     ---
-    {request.user_input}
+    {request.user_input} 
     ---
 
     Based on your analysis, generate a valid JSON response with the following structure.
