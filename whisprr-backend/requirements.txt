@@ -3,3 +3,7 @@ google-generativeai
 python-dotenv
 sqlmodel
 requests
+passlib[bcrypt]
+python-jose[cryptography]
+fastapi-mail
+google-auth

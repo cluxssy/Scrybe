@@ -55,6 +55,8 @@ import com.itextpdf.text.Image;
 import java.io.InputStream;
 import java.net.URL;
 import android.os.StrictMode;
+import android.view.Menu;
+import android.view.MenuItem;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -79,6 +81,7 @@ public class MainActivity extends AppCompatActivity {
     private final String[] permissions = {Manifest.permission.RECORD_AUDIO};
     private MediaRecorder recorder = null;
     private String fileName = null;
+    private SessionManager sessionManager;
 
     private Handler typewriterHandler = new Handler(Looper.getMainLooper());
 
@@ -99,6 +102,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        sessionManager = new SessionManager(getApplicationContext());
 
         ActivityCompat.requestPermissions(this, permissions, REQUEST_RECORD_AUDIO_PERMISSION);
 
@@ -164,14 +169,23 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
             return true;
         } else if (itemId == R.id.action_export) {
-            // NEW: Handle the export action
             exportStoryAsPdf();
+            return true;
+        } else if (itemId == R.id.action_logout) {
+            logoutUser();
             return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
-
+    private void logoutUser() {
+        sessionManager.clearAuthToken();
+        Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+        // Flags to clear the back stack and prevent user from returning to MainActivity
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
     private void handleTextSend() {
         String inputText = userInputEditText.getText().toString().trim();
         if (!inputText.isEmpty()) {
@@ -475,4 +489,5 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Could not create or share PDF.", Toast.LENGTH_SHORT).show();
         }
     }
+
 }

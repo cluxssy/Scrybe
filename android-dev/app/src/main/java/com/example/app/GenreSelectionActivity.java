@@ -1,6 +1,7 @@
 package com.example.app;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -16,8 +17,9 @@ public class GenreSelectionActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_genre_selection);
 
-        // Get the AI name passed from WelcomeActivity
-        aiName = getIntent().getStringExtra("AI_NAME");
+        // Get the AI name from SharedPreferences
+        SharedPreferences prefs = getSharedPreferences("ScrybePrefs", MODE_PRIVATE);
+        aiName = prefs.getString("aiName", "Orion"); // Default to "Orion" if not found
 
         Button mysteryButton = findViewById(R.id.mysteryButton);
         Button horrorButton = findViewById(R.id.horrorButton);
@@ -43,7 +45,5 @@ public class GenreSelectionActivity extends AppCompatActivity {
         intent.putExtra("AI_NAME", aiName);
         intent.putExtra("GENRE", genre);
         startActivity(intent);
-        // Finish this activity so the user can't go back to it
-        finish();
     }
 }
