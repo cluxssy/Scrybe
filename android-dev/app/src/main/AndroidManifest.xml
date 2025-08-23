@@ -30,6 +30,10 @@
         </provider>
 
         <activity
+            android:name=".ProfileActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".OtpActivity"
             android:exported="false" />
 
@@ -64,6 +68,10 @@
 
         <activity
             android:name=".MainActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".SettingsActivity"
             android:exported="false" />
 
     </application>

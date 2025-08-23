@@ -164,13 +164,6 @@ public class MainActivity extends AppCompatActivity {
         if (itemId == R.id.action_save) {
             saveStory();
             return true;
-        } else if (itemId == R.id.action_library) {
-            Intent intent = new Intent(MainActivity.this, LibraryActivity.class);
-            startActivity(intent);
-            return true;
-        } else if (itemId == R.id.action_export) {
-            exportStoryAsPdf();
-            return true;
         } else if (itemId == R.id.action_logout) {
             logoutUser();
             return true;

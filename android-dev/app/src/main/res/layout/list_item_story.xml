@@ -5,44 +5,47 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
-    app:cardElevation="4dp"
-    app:cardCornerRadius="8dp">
+    app:cardCornerRadius="12dp"
+    app:cardElevation="4dp">
 
-    <RelativeLayout
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="horizontal"
         android:padding="16dp">
 
         <ImageView
             android:id="@+id/storyCoverImageView"
             android:layout_width="80dp"
             android:layout_height="100dp"
-            android:layout_alignParentStart="true"
-            android:layout_centerVertical="true"
             android:scaleType="centerCrop"
-            android:src="@android:drawable/ic_menu_gallery" /> <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_toEndOf="@id/storyCoverImageView"
-        android:layout_centerVertical="true"
-        android:layout_marginStart="16dp"
-        android:orientation="vertical">
+            android:src="@android:drawable/ic_menu_gallery" />
 
-        <TextView
-            android:id="@+id/storyTitleTextView"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Story Title"
-            android:textAppearance="?attr/textAppearanceTitleMedium" />
+            android:layout_weight="1"
+            android:layout_marginStart="16dp"
+            android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/storyGenreTextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Genre"
-            android:textAppearance="?attr/textAppearanceBodyMedium"
-            android:textColor="?android:attr/textColorSecondary"/>
+            <TextView
+                android:id="@+id/storyTitleTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Story Title"
+                android:textSize="24sp"
+                android:textAppearance="?attr/textAppearanceTitleMedium"
+                android:textColor="@color/textColorPrimary"/>
+
+            <TextView
+                android:id="@+id/storyGenreTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Genre"
+                android:textSize="10dp"
+                android:textAppearance="?attr/textAppearanceBodyMedium"
+                android:textColor="@color/textColorSecondary"/>
+        </LinearLayout>
     </LinearLayout>
-    </RelativeLayout>
 </com.google.android.material.card.MaterialCardView>

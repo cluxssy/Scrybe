@@ -19,6 +19,7 @@ import random
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
+from collections import Counter
 
 # --- INITIALIZATION ---
 load_dotenv()
@@ -120,6 +121,33 @@ async def get_current_user(token: str = Depends(oauth2_scheme), session: Session
     if user is None:
         raise credentials_exception
     return user
+
+
+@app.get("/api/users/me", response_model=models.UserRead)
+async def read_users_me(current_user: models.User = Depends(get_current_user)):
+    return current_user
+
+@app.get("/api/users/me/stats", response_model=models.ProfileStats)
+def get_user_stats(session: Session = Depends(get_session), current_user: models.User = Depends(get_current_user)):
+    stories = session.exec(
+        select(models.Story).where(models.Story.user_id == current_user.id)
+    ).all()
+    
+    stories_created = len(stories)
+    total_words = sum(len(chapter.content.split()) for story in stories for chapter in story.chapters)
+    
+    if stories:
+        genre_counts = Counter(story.genre for story in stories)
+        most_common_genre = genre_counts.most_common(1)[0][0]
+    else:
+        most_common_genre = "N/A"
+        
+    return models.ProfileStats(
+        stories_created=stories_created,
+        total_words=total_words,
+        most_common_genre=most_common_genre,
+    )
+
 
 # --- AUTHENTICATION ---
 @app.post("/api/signup")

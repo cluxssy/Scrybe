@@ -45,5 +45,6 @@ public class GenreSelectionActivity extends AppCompatActivity {
         intent.putExtra("AI_NAME", aiName);
         intent.putExtra("GENRE", genre);
         startActivity(intent);
+        finish();
     }
 }

@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/backgroundColor"
     android:gravity="center"
     android:orientation="vertical"
     android:padding="24dp"
@@ -12,46 +13,69 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Create Account"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="32dp"/>
+        android:textColor="@color/colorPrimary"
+        android:textSize="32sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="48dp"
+        android:text="Join the Scrybe Community"
+        android:textColor="@color/textColorSecondary"
+        android:textSize="16sp" />
 
     <EditText
         android:id="@+id/usernameEditText"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="50dp"
+        android:background="@drawable/edit_text_background"
         android:hint="Username"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
         android:inputType="text"/>
 
     <EditText
         android:id="@+id/emailEditText"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="50dp"
         android:layout_marginTop="16dp"
+        android:background="@drawable/edit_text_background"
         android:hint="Email"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
         android:inputType="textEmailAddress"/>
 
     <EditText
         android:id="@+id/passwordEditText"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="50dp"
         android:layout_marginTop="16dp"
+        android:background="@drawable/edit_text_background"
         android:hint="Password"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
         android:inputType="textPassword"/>
 
     <EditText
         android:id="@+id/password2EditText"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="50dp"
         android:layout_marginTop="16dp"
+        android:background="@drawable/edit_text_background"
         android:hint="Confirm Password"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
         android:inputType="textPassword"/>
 
-    <Button
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/signupButton"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="55dp"
         android:layout_marginTop="24dp"
-        android:text="Sign Up"/>
+        android:background="@drawable/button_background"
+        android:text="Sign Up"
+        android:textColor="@android:color/white"
+        android:textSize="18sp" />
 
 </LinearLayout>

@@ -59,4 +59,5 @@ dependencies {
     androidTestImplementation(libs.espresso.core)
     implementation("com.google.android.gms:play-services-auth:20.7.0") // Add this line
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("androidx.preference:preference:1.2.0")
 }

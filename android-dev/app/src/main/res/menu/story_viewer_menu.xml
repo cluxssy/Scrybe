@@ -2,10 +2,8 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
-        android:id="@+id/action_save"
-        android:title="Save Story"
-        android:icon="@android:drawable/ic_menu_save"
+        android:id="@+id/action_export_pdf"
+        android:title="Export as PDF"
+        android:icon="@android:drawable/ic_menu_share"
         app:showAsAction="ifRoom" />
-
-
 </menu>

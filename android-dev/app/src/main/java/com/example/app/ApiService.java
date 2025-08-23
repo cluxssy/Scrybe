@@ -41,4 +41,10 @@ public interface ApiService {
 
     @POST("api/login/google")
     Call<Token> loginWithGoogle(@Body GoogleToken googleToken);
+
+    @GET("api/users/me")
+    Call<UserRead> readUsersMe();
+
+    @GET("api/users/me/stats")
+    Call<ProfileStats> getUserStats();
 }

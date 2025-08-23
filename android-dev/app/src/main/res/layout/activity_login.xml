@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/backgroundColor"
     android:gravity="center"
     android:orientation="vertical"
     android:padding="24dp"
@@ -12,31 +13,48 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Welcome to Scrybe"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="32dp"/>
+        android:textColor="@color/colorPrimary"
+        android:textSize="32sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="48dp"
+        android:text="Your AI Storytelling Partner"
+        android:textColor="@color/textColorSecondary"
+        android:textSize="16sp" />
 
     <EditText
         android:id="@+id/usernameEditText"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="50dp"
+        android:background="@drawable/edit_text_background"
         android:hint="Username"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
         android:inputType="text"/>
 
     <EditText
         android:id="@+id/passwordEditText"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="50dp"
         android:layout_marginTop="16dp"
+        android:background="@drawable/edit_text_background"
         android:hint="Password"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
         android:inputType="textPassword"/>
 
-    <Button
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/loginButton"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="55dp"
         android:layout_marginTop="24dp"
-        android:text="Login"/>
+        android:background="@drawable/button_background"
+        android:text="Login"
+        android:textColor="@android:color/white"
+        android:textSize="18sp" />
 
     <TextView
         android:id="@+id/signUpTextView"
@@ -44,12 +62,26 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="Don't have an account? Sign Up"
-        android:textColor="?attr/colorPrimary"/>
+        android:textColor="@color/colorPrimary"/>
 
-    <com.google.android.gms.common.SignInButton
-        android:id="@+id/googleSignInButton"
+    <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"/>
+        android:layout_marginTop="24dp"
+        android:text="OR"
+        android:textColor="@color/textColorSecondary"/>
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/googleSignInButton"
+        android:layout_width="match_parent"
+        android:layout_height="55dp"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/google_button_background"
+        android:drawableStart="@drawable/ic_google_logo"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:text="Sign in with Google"
+        android:textAllCaps="false"
+        android:textColor="@color/textColorPrimary" />
 
 </LinearLayout>

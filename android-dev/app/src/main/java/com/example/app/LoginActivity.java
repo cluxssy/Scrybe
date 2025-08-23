@@ -12,6 +12,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.AppCompatButton;
 
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
@@ -33,7 +34,7 @@ public class LoginActivity extends AppCompatActivity {
     private TextView signUpTextView;
     private ApiService apiService;
     private SessionManager sessionManager;
-    private SignInButton googleSignInButton;
+    private AppCompatButton googleSignInButton;
     private GoogleSignInClient mGoogleSignInClient; // Declared as a class member
     private ActivityResultLauncher<Intent> googleSignInLauncher;
 
@@ -150,8 +151,9 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void navigateToWelcome() {
-        Intent intent = new Intent(LoginActivity.this, WelcomeActivity.class);
+        // Change this to navigate to the LibraryActivity
+        Intent intent = new Intent(LoginActivity.this, LibraryActivity.class);
         startActivity(intent);
-        finish(); // Prevent user from going back to the login screen
+        finish();
     }
 }

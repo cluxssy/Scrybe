@@ -102,3 +102,12 @@ class StoryCreate(BaseModel):
 
     class Config:
         from_attributes = True
+
+class UserRead(BaseModel):
+    username: str
+    email: str
+
+class ProfileStats(BaseModel):
+    stories_created: int
+    total_words: int
+    most_common_genre: Optional[str] = "N/A"
