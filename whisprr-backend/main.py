@@ -272,18 +272,30 @@ class FullStoryCreate(BaseModel):
     ai_name: str
     chapters: List[models.ChapterCreate]
 
+class AiNameUpdate(BaseModel):
+    ai_name: str
+
 # --- STORY GENERATION ---
 @app.post("/api/continue_story", response_model=StoryResponse)
 async def continue_story(request: StoryRequest):
     prompt = f"""
     You are a backend AI that MUST ONLY return a JSON object. Do not return any other text, explanation, or markdown.
     You are a creative partner named {request.ai_name}.
+    
     Your task is to analyze the user's instruction based on the story so far and choose one of five actions:
     1.  **APPEND**: For a regular creative continuation.
     2.  **REPLACE**: If the user gives an editing command like "change the character's name" or "rewrite that last part."
     3.  **CHAPTER**: If the story reaches a natural break (climax, setting change, time jump).
     4.  **CHAT**: If the user is just talking to you ("hello", "what's next?").
     5.  **REFUSE**: If the user asks for harmful or explicit content.
+
+    Additional Chapter Rules:
+    - When starting the story, always begin with **Chapter 1: [Title]**.
+    - For every new chapter, increment the chapter number automatically and create a short, fitting title.
+    - Always format chapters clearly as:
+        "Chapter X: Title"
+        [story text continues here]
+
     STORY SO FAR:
     ---
     {request.story_context}
@@ -292,9 +304,11 @@ async def continue_story(request: StoryRequest):
     ---
     {request.user_input} 
     ---
-    Based on your analysis, generate a valid JSON response with the following structure.
-    -   For APPEND, REPLACE, or CHAPTER, the JSON must contain "action", "story_text", and "chat_response". For CHAPTER, also include "new_chapter_title".
-    -   For CHAT or REFUSE, the JSON must contain "action" and "chat_response". "story_text" should be an empty string.
+    Based on your analysis, generate a valid JSON response with the following structure:
+    - For APPEND, REPLACE, or CHAPTER: include "action", "story_text", and "chat_response".
+        - If CHAPTER, also include "new_chapter_title".
+    - For CHAT or REFUSE: include "action" and "chat_response". "story_text" should be an empty string.
+    
     Your response must be a single, valid JSON object and nothing else.
     """
     try:
@@ -358,6 +372,18 @@ def read_story(story_id: int, session: Session = Depends(get_session)):
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")
     return story
+
+@app.put("/api/users/me/ai_name", response_model=models.UserRead)
+def update_ai_name(
+    ai_name_data: AiNameUpdate,
+    session: Session = Depends(get_session),
+    current_user: models.User = Depends(get_current_user)
+):
+    current_user.ai_name = ai_name_data.ai_name
+    session.add(current_user)
+    session.commit()
+    session.refresh(current_user)
+    return current_user
 
 # --- GENERATE COVER IMAGE ---
 @app.post("/api/stories/{story_id}/generate_cover", response_model=models.StoryRead)

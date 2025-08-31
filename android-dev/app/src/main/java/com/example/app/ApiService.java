@@ -1,5 +1,7 @@
 package com.example.app;
 
+import com.google.gson.annotations.SerializedName;
+
 import java.util.List;
 import retrofit2.Call;
 import retrofit2.http.Body;
@@ -8,6 +10,7 @@ import retrofit2.http.FormUrlEncoded;
 import retrofit2.http.GET;
 import retrofit2.http.POST;
 import retrofit2.http.Path;
+import retrofit2.http.PUT;
 
 public interface ApiService {
     @POST("api/signup")
@@ -44,6 +47,15 @@ public interface ApiService {
 
     @GET("api/users/me")
     Call<UserRead> readUsersMe();
+
+    class AiNameUpdate {
+        @SerializedName("ai_name")
+        String ai_name;
+        public AiNameUpdate(String name) { this.ai_name = name; }
+    }
+
+    @PUT("api/users/me/ai_name")
+    Call<UserRead> updateAiName(@Body AiNameUpdate aiNameUpdate);
 
     @GET("api/users/me/stats")
     Call<ProfileStats> getUserStats();

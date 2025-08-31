@@ -13,6 +13,7 @@ class User(SQLModel, table=True):
     is_verified: bool = Field(default=False)
     otp: Optional[str] = None
     otp_expires_at: Optional[datetime.datetime] = None
+    ai_name: Optional[str] = None
     
     stories: List["Story"] = Relationship(back_populates="user")
 
@@ -106,6 +107,7 @@ class StoryCreate(BaseModel):
 class UserRead(BaseModel):
     username: str
     email: str
+    ai_name: Optional[str] = None
 
 class ProfileStats(BaseModel):
     stories_created: int

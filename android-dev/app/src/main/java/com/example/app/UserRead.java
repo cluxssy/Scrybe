@@ -8,4 +8,7 @@ public class UserRead {
 
     @SerializedName("email")
     public String email;
+
+    @SerializedName("ai_name")
+    public String ai_name;
 }
