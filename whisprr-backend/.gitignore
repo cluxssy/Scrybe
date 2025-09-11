@@ -1,0 +1,12 @@
+# Ignore environment files
+.env
+*.env
+
+# Ignore macOS system files
+.DS_Store
+
+# Ignore SQLite database
+*.db
+
+# Ignore cover images folder
+covers/

@@ -289,7 +289,7 @@ async def continue_story(request: StoryRequest):
     4.  **CHAT**: If the user is just talking to you ("hello", "what's next?").
     5.  **REFUSE**: If the user asks for harmful or explicit content.
 
-    Additional Chapter Rules:
+    Additional Chapter Rules:   
     - When starting the story, always begin with **Chapter 1: [Title]**.
     - For every new chapter, increment the chapter number automatically and create a short, fitting title.
     - Always format chapters clearly as:
